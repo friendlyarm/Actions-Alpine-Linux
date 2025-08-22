@@ -127,7 +127,7 @@ jobs:
         sudo tar xf toolchain-11.3-aarch64.tar.xz -C /
 
     - name: Download alpine rootfs
-      uses: robinraju/release-downloader@v1.6
+      uses: robinraju/release-downloader@daf26c55d821e836577a15f77d86ddc078948b05 # v1.12
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
