@@ -85,7 +85,7 @@ jobs:
         '
 
     - name: Upload rootfs package
-      uses: svenstaro/upload-release-action@v2
+      uses: svenstaro/upload-release-action@81c65b7cd4de9b2570615ce3aad67a41de5b1a13 # v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: ./artifact/${{ steps.create_rootfs_package.outputs.rootfs_filename }}
@@ -241,7 +241,7 @@ jobs:
         '
 
     - name: Upload rootfs to release
-      uses: svenstaro/upload-release-action@v2
+      uses: svenstaro/upload-release-action@81c65b7cd4de9b2570615ce3aad67a41de5b1a13 # v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: ./artifact/${{ steps.build_sd_image.outputs.image_assets_pkg_filename }}
@@ -250,7 +250,7 @@ jobs:
         overwrite: true
 
     - name: Upload sd image to release
-      uses: svenstaro/upload-release-action@v2
+      uses: svenstaro/upload-release-action@81c65b7cd4de9b2570615ce3aad67a41de5b1a13 # v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: ./artifact/${{ steps.build_sd_image.outputs.img_filename_sd }}.gz
@@ -259,7 +259,7 @@ jobs:
         overwrite: true
 
     - name: Upload sd-to-emmc image to release
-      uses: svenstaro/upload-release-action@v2
+      uses: svenstaro/upload-release-action@81c65b7cd4de9b2570615ce3aad67a41de5b1a13 # v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: ./artifact/${{ steps.build_sd_image.outputs.img_filename_sd2emmc }}.gz
