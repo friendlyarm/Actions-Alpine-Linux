@@ -1,31 +1,36 @@
 on:
   watch:
     types: started
+
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   prepare_release:
     runs-on: ubuntu-24.04
     if: github.event.repository.owner.id == github.event.sender.id
     steps:
-    - name: Harden the runner (Audit all outbound calls)
-      uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
-      with:
-        egress-policy: audit
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
+        with:
+          egress-policy: audit
 
-    - name: Get release tag
-      id: release_tag
-      run: |
-        release_tag="Alpine-$(date +%Y-%m-%d)"
-        echo "##[set-output name=release_tag;]$release_tag"
+      - name: Get release tag
+        id: release_tag
+        run: |
+          release_tag="Alpine-$(date +%Y-%m-%d)"
+          echo "##[set-output name=release_tag;]$release_tag"
 
-    - name: Create empty release
-      id: release
-      uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ steps.release_tag.outputs.release_tag }}
-        draft: false
-        prerelease: false
+      - name: Create empty release
+        id: release
+        uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.release_tag.outputs.release_tag }}
+          draft: false
+          prerelease: false
     outputs:
       release_tag: ${{ steps.release_tag.outputs.release_tag }}
       upload_url: ${{ steps.release.outputs.upload_url }}
@@ -35,250 +40,251 @@ jobs:
     runs-on: ubuntu-24.04
     if: github.event.repository.owner.id == github.event.sender.id
     steps:
-    - name: Harden the runner (Audit all outbound calls)
-      uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
-      with:
-        egress-policy: audit
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
+        with:
+          egress-policy: audit
 
-    - name: Checkout
-      uses: actions/checkout@ff7abcd0c3c05ccf6adc123a8cd1fd4fb30fb493 # main
+      - name: Checkout
+        uses: actions/checkout@ff7abcd0c3c05ccf6adc123a8cd1fd4fb30fb493 # main
 
-    - name: Initialization environment
-      env:
-        DEBIAN_FRONTEND: noninteractive
-      run: |
-        sudo rm -rf /etc/apt/sources.list.d
-        wget https://raw.githubusercontent.com/friendlyarm/build-env-on-ubuntu-bionic/master/install.sh
-        sed -i -e 's/^apt-get -y install openjdk-8-jdk/# apt-get -y install openjdk-8-jdk/g' install.sh
-        sed -i -e 's/^\[ -d fa-toolchain \]/# [ -d fa-toolchain ]/g' install.sh
-        sed -i -e 's/^(cat fa-toolchain/# (cat fa-toolchain/g' install.sh
-        sed -i -e 's/^(tar xf fa-toolchain/# (tar xf fa-toolchain/g' install.sh
-        sudo -E bash ./install.sh
-        sudo -E git config --global user.name 'GitHub Actions'
-        sudo -E git config --global user.email 'noreply@github.com'
-        mkdir -p ./artifact
-        sudo swapoff -a
-        sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk /usr/local/share/boost /opt/ghc
-        echo "cores: $(nproc)"
+      - name: Initialization environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo rm -rf /etc/apt/sources.list.d
+          wget https://raw.githubusercontent.com/friendlyarm/build-env-on-ubuntu-bionic/master/install.sh
+          sed -i -e 's/^apt-get -y install openjdk-8-jdk/# apt-get -y install openjdk-8-jdk/g' install.sh
+          sed -i -e 's/^\[ -d fa-toolchain \]/# [ -d fa-toolchain ]/g' install.sh
+          sed -i -e 's/^(cat fa-toolchain/# (cat fa-toolchain/g' install.sh
+          sed -i -e 's/^(tar xf fa-toolchain/# (tar xf fa-toolchain/g' install.sh
+          sudo -E bash ./install.sh
+          sudo -E git config --global user.name 'GitHub Actions'
+          sudo -E git config --global user.email 'noreply@github.com'
+          mkdir -p ./artifact
+          sudo swapoff -a
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk /usr/local/share/boost /opt/ghc
+          echo "cores: $(nproc)"
 
-    - name: Download alpine-minirootfs
-      run: |
-        mkdir project
-        cd project
-        wget https://dl-cdn.alpinelinux.org/alpine/v3.22/releases/aarch64/alpine-minirootfs-3.22.1-aarch64.tar.gz
-        mkdir rootfs
-        sudo -E tar xzfp alpine-minirootfs-3.22.1-aarch64.tar.gz --numeric-owner --same-owner -C rootfs
-
-    - name: Apply customizations
-      run: |
-        sudo -u root bash -c '
+      - name: Download alpine-minirootfs
+        run: |
+          mkdir project
           cd project
-          cp /etc/resolv.conf rootfs/etc/resolv.conf
-          cp ../scripts/setup-alpine.sh rootfs/
-          source ../scripts/set_chroot_env.sh
-          mount_chroot_env rootfs
-          LANG=C chroot rootfs /setup-alpine.sh
-          umount_chroot_env rootfs
-          # clean
-          rm -f rootfs/setup-alpine.sh
-          rm -f rootfs/etc/resolv.conf
-        '
+          wget https://dl-cdn.alpinelinux.org/alpine/v3.22/releases/aarch64/alpine-minirootfs-3.22.1-aarch64.tar.gz
+          mkdir rootfs
+          sudo -E tar xzfp alpine-minirootfs-3.22.1-aarch64.tar.gz --numeric-owner --same-owner -C rootfs
 
-    - name: Create rootfs package
-      id: create_rootfs_package
-      run: |
-        sudo -u root bash -c '
-          cd project
-          rootfs_filename="rootfs.tgz"
-          tar cvzf ../artifact/${rootfs_filename} rootfs
-          echo "##[set-output name=rootfs_filename;]$rootfs_filename"
-        '
+      - name: Apply customizations
+        run: |
+          sudo -u root bash -c '
+            cd project
+            cp /etc/resolv.conf rootfs/etc/resolv.conf
+            cp ../scripts/setup-alpine.sh rootfs/
+            source ../scripts/set_chroot_env.sh
+            mount_chroot_env rootfs
+            LANG=C chroot rootfs /setup-alpine.sh
+            umount_chroot_env rootfs
+            # clean
+            rm -f rootfs/setup-alpine.sh
+            rm -f rootfs/etc/resolv.conf
+          '
 
-    - name: Upload rootfs package
-      uses: svenstaro/upload-release-action@81c65b7cd4de9b2570615ce3aad67a41de5b1a13 # v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./artifact/${{ steps.create_rootfs_package.outputs.rootfs_filename }}
-        asset_name: ${{ steps.create_rootfs_package.outputs.rootfs_filename }}
-        tag: ${{ needs.prepare_release.outputs.release_tag }}
-        overwrite: true
+      - name: Create rootfs package
+        id: create_rootfs_package
+        run: |
+          sudo -u root bash -c '
+            cd project
+            rootfs_filename="rootfs.tgz"
+            tar cvzf ../artifact/${rootfs_filename} rootfs
+            echo "##[set-output name=rootfs_filename;]$rootfs_filename"
+          '
+
+      - name: Upload rootfs package
+        uses: svenstaro/upload-release-action@81c65b7cd4de9b2570615ce3aad67a41de5b1a13 # v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./artifact/${{ steps.create_rootfs_package.outputs.rootfs_filename }}
+          asset_name: ${{ steps.create_rootfs_package.outputs.rootfs_filename }}
+          tag: ${{ needs.prepare_release.outputs.release_tag }}
+          overwrite: true
 
   build_img:
-    needs: [prepare_release,build_alpine]
+    needs: [prepare_release, build_alpine]
     runs-on: ubuntu-24.04
     if: github.event.repository.owner.id == github.event.sender.id
 
     strategy:
       matrix:
-        CPU: [rk3328, rk3528, rk3399, rk3566, rk3568, rk3576, rk3588]
+        #CPU: [rk3328, rk3528, rk3399, rk3566, rk3568, rk3576, rk3588]
+        # I only need the rk3588 so lets skip the rest!
+        CPU: [rk3588]
     steps:
-    - name: Harden the runner (Audit all outbound calls)
-      uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
-      with:
-        egress-policy: audit
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
+        with:
+          egress-policy: audit
 
-    - name: Checkout
-      uses: actions/checkout@ff7abcd0c3c05ccf6adc123a8cd1fd4fb30fb493 # main
+      - name: Checkout
+        uses: actions/checkout@ff7abcd0c3c05ccf6adc123a8cd1fd4fb30fb493 # main
 
-    - name: Initialization environment
-      env:
-        DEBIAN_FRONTEND: noninteractive
-      run: |
-        sudo rm -rf /etc/apt/sources.list.d
-        wget https://raw.githubusercontent.com/friendlyarm/build-env-on-ubuntu-bionic/master/install.sh
-        sed -i -e 's/^apt-get -y install openjdk-8-jdk/# apt-get -y install openjdk-8-jdk/g' install.sh
-        sed -i -e 's/^\[ -d fa-toolchain \]/# [ -d fa-toolchain ]/g' install.sh
-        sed -i -e 's/^(cat fa-toolchain/# (cat fa-toolchain/g' install.sh
-        sed -i -e 's/^(tar xf fa-toolchain/# (tar xf fa-toolchain/g' install.sh
-        sudo -E bash ./install.sh
-        sudo -E git config --global user.name 'GitHub Actions'
-        sudo -E git config --global user.email 'noreply@github.com'
-        mkdir -p ./artifact
-        sudo swapoff -a
-        sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk /usr/local/share/boost /opt/ghc
-        echo "cores: $(nproc)"
-        git clone https://github.com/friendlyarm/prebuilts.git -b master --depth 1
-        cd prebuilts/gcc-x64
-        sudo tar xf toolchain-11.3-aarch64.tar.xz -C /
+      - name: Initialization environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo rm -rf /etc/apt/sources.list.d
+          wget https://raw.githubusercontent.com/friendlyarm/build-env-on-ubuntu-bionic/master/install.sh
+          sed -i -e 's/^apt-get -y install openjdk-8-jdk/# apt-get -y install openjdk-8-jdk/g' install.sh
+          sed -i -e 's/^\[ -d fa-toolchain \]/# [ -d fa-toolchain ]/g' install.sh
+          sed -i -e 's/^(cat fa-toolchain/# (cat fa-toolchain/g' install.sh
+          sed -i -e 's/^(tar xf fa-toolchain/# (tar xf fa-toolchain/g' install.sh
+          sudo -E bash ./install.sh
+          sudo -E git config --global user.name 'GitHub Actions'
+          sudo -E git config --global user.email 'noreply@github.com'
+          mkdir -p ./artifact
+          sudo swapoff -a
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk /usr/local/share/boost /opt/ghc
+          echo "cores: $(nproc)"
+          git clone https://github.com/friendlyarm/prebuilts.git -b master --depth 1
+          cd prebuilts/gcc-x64
+          sudo tar xf toolchain-11.3-aarch64.tar.xz -C /
 
-    - name: Download alpine rootfs
-      uses: robinraju/release-downloader@daf26c55d821e836577a15f77d86ddc078948b05 # v1.12
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        repository: ${{ github.repository }}
-        tag: ${{ needs.prepare_release.outputs.release_tag }}
-        fileName: "rootfs.tgz"
+      - name: Download alpine rootfs
+        uses: robinraju/release-downloader@daf26c55d821e836577a15f77d86ddc078948b05 # v1.12
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          repository: ${{ github.repository }}
+          tag: ${{ needs.prepare_release.outputs.release_tag }}
+          fileName: "rootfs.tgz"
 
-    - name: Build sd image
-      id: build_sd_image
-      run: |
-        mkdir project
-        cd project
-        case ${{ matrix.CPU }} in
-        rk3328)
-          BRANCH=kernel-6.6.y
-          KERNEL_VARIANT=mainline
-          ;;
-        rk3528)
-          BRANCH=kernel-6.1.y
-          KERNEL_VARIANT=vendor
-          ;;
-        rk3399)
-          BRANCH=kernel-6.6.y
-          KERNEL_VARIANT=mainline
-          ;;
-        rk3568)
-          BRANCH=kernel-6.1.y
-          KERNEL_VARIANT=vendor
-          ;;
-        rk3566)
-          BRANCH=kernel-6.1.y
-          KERNEL_VARIANT=vendor
-          ;;
-        rk3576)
-          BRANCH=kernel-6.1.y
-          KERNEL_VARIANT=vendor
-          ;;
-        rk3588)
-          BRANCH=kernel-6.1.y
-          KERNEL_VARIANT=vendor
-          ;;
-        *)
-          echo "unknow cpu"
-          exit 1
-          ;;
-        esac
+      - name: Build sd image
+        id: build_sd_image
+        run: |
+          mkdir project
+          cd project
+          case ${{ matrix.CPU }} in
+          rk3328)
+            BRANCH=kernel-6.6.y
+            KERNEL_VARIANT=mainline
+            ;;
+          rk3528)
+            BRANCH=kernel-6.1.y
+            KERNEL_VARIANT=vendor
+            ;;
+          rk3399)
+            BRANCH=kernel-6.6.y
+            KERNEL_VARIANT=mainline
+            ;;
+          rk3568)
+            BRANCH=kernel-6.1.y
+            KERNEL_VARIANT=vendor
+            ;;
+          rk3566)
+            BRANCH=kernel-6.1.y
+            KERNEL_VARIANT=vendor
+            ;;
+          rk3576)
+            BRANCH=kernel-6.1.y
+            KERNEL_VARIANT=vendor
+            ;;
+          rk3588)
+            BRANCH=kernel-6.1.y
+            KERNEL_VARIANT=vendor
+            ;;
+          *)
+            echo "unknown cpu"
+            exit 1
+            ;;
+          esac
 
-        git clone https://github.com/friendlyarm/sd-fuse_${{ matrix.CPU }} -b ${BRANCH} --depth=1 sd-fuse
-        sudo su -c "tar xzfp "../rootfs.tgz" -C sd-fuse --numeric-owner --same-owner"
-        if [ "${KERNEL_VARIANT}" = "mainline" ]; then
-          sudo sed -i 's/ttyFIQ0/ttyS2/g' sd-fuse/rootfs/etc/inittab
-        fi
-
-        cd sd-fuse
-        sudo -u root bash -c '
-          OS_DIR=alpine-linux-arm64
-          mkdir ${OS_DIR}
-
-          cp prebuilt/parameter.template ${OS_DIR}/parameter.txt
-          # Initialize the size, but it is not the final value, the build-rootfs-img.sh script will overwrite it
-          sed -i "s/<ROOTFS_PARTITION_SIZE>/0x000c0000/g" ${OS_DIR}/parameter.txt
-          sed -i "s/<USERDATA_PARTITION_ADDR>/0x00106000/g" ${OS_DIR}/parameter.txt
-
-          if [ -f ../../plat/${{ matrix.CPU }}/custom.sh ]; then
-            ../../plat/${{ matrix.CPU }}/custom.sh $PWD/rootfs
+          git clone https://github.com/friendlyarm/sd-fuse_${{ matrix.CPU }} -b ${BRANCH} --depth=1 sd-fuse
+          sudo su -c "tar xzfp "../rootfs.tgz" -C sd-fuse --numeric-owner --same-owner"
+          if [ "${KERNEL_VARIANT}" = "mainline" ]; then
+            sudo sed -i 's/ttyFIQ0/ttyS2/g' sd-fuse/rootfs/etc/inittab
           fi
-          cp -af ../../plat/rockchip-common/alsa/* $PWD/rootfs/
 
-          # build uboot
-          UBOOT_SRC=uboot ./build-uboot.sh ${OS_DIR}
+          cd sd-fuse
+          sudo -u root bash -c '
+            OS_DIR=alpine-linux-arm64
+            mkdir ${OS_DIR}
 
-          # build kernel
-          DISABLE_MKIMG=1 KERNEL_SRC=kernel ./build-kernel.sh ${OS_DIR}
-          TMP_DIR=$(mktemp -d out/boot.XXXXXXXXX)
-          ./tools/setup_boot_and_rootfs.sh uboot kernel ${TMP_DIR} rootfs ./prebuilt ${OS_DIR}
+            cp prebuilt/parameter.template ${OS_DIR}/parameter.txt
+            # Initialize the size, but it is not the final value, the build-rootfs-img.sh script will overwrite it
+            sed -i "s/<ROOTFS_PARTITION_SIZE>/0x000c0000/g" ${OS_DIR}/parameter.txt
+            sed -i "s/<USERDATA_PARTITION_ADDR>/0x00106000/g" ${OS_DIR}/parameter.txt
 
-          # add idbloader.img,boot.img, etc.
-          ./tools/update_prebuilt.sh ./${OS_DIR} ./prebuilt
+            if [ -f ../../plat/${{ matrix.CPU }}/custom.sh ]; then
+              ../../plat/${{ matrix.CPU }}/custom.sh $PWD/rootfs
+            fi
+            cp -af ../../plat/rockchip-common/alsa/* $PWD/rootfs/
 
-          # build rootfs.img
-          ./build-rootfs-img.sh rootfs ${OS_DIR} 0 0
-          echo "title=${OS_DIR}" > ./${OS_DIR}/info.conf
-          echo "require-board=${{ matrix.CPU }}" >> ./${OS_DIR}/info.conf
-          echo "version=$(date +%Y-%m-%d)" >> ./${OS_DIR}/info.conf
+            # build uboot
+            UBOOT_SRC=uboot ./build-uboot.sh ${OS_DIR}
 
-          # build sd image
-          FILENAME_SD=${{ matrix.CPU }}-sd-alpine-linux-arm64-$(date +%Y-%m-%d).img
-          echo "##[set-output name=img_filename_sd;]$FILENAME_SD"
-          ./mk-sd-image.sh ${OS_DIR} ${FILENAME_SD}
-          mv out/${FILENAME_SD} ../../artifact/
+            # build kernel
+            DISABLE_MKIMG=1 KERNEL_SRC=kernel ./build-kernel.sh ${OS_DIR}
+            TMP_DIR=$(mktemp -d out/boot.XXXXXXXXX)
+            ./tools/setup_boot_and_rootfs.sh uboot kernel ${TMP_DIR} rootfs ./prebuilt ${OS_DIR}
 
-          # build sd-to-emmc image
-          FILENAME_SD2EMMC=${{ matrix.CPU }}-eflasher-alpine-linux-arm64-$(date +%Y-%m-%d).img
-          echo "##[set-output name=img_filename_sd2emmc;]$FILENAME_SD2EMMC"
-          wget http://112.124.9.243/dvdfiles/${{ matrix.CPU }}/images-for-eflasher/emmc-flasher-images.tgz
-          tar xzf emmc-flasher-images.tgz
-          RAW_SIZE_MB=8000 ./mk-emmc-image.sh ${OS_DIR} filename=${FILENAME_SD2EMMC} autostart=yes
-          mv out/${FILENAME_SD2EMMC} ../../artifact/
+            # add idbloader.img,boot.img, etc.
+            ./tools/update_prebuilt.sh ./${OS_DIR} ./prebuilt
 
-          # package image-assets-xyz.tgz
-          IMAGE_ASSETS_PKG=image-assets-${{ matrix.CPU }}.tgz
-          echo "##[set-output name=image_assets_pkg_filename;]$IMAGE_ASSETS_PKG"
-          mkdir image-assets-${{ matrix.CPU }}
-          tar cpzf image-assets-${{ matrix.CPU }}/rootfs.tgz rootfs
-          mv ${OS_DIR} image-assets-${{ matrix.CPU }}/
-          tar czf ${IMAGE_ASSETS_PKG} image-assets-${{ matrix.CPU }}
-          mv ${IMAGE_ASSETS_PKG} ../../artifact/
+            # build rootfs.img
+            ./build-rootfs-img.sh rootfs ${OS_DIR} 0 0
+            echo "title=${OS_DIR}" > ./${OS_DIR}/info.conf
+            echo "require-board=${{ matrix.CPU }}" >> ./${OS_DIR}/info.conf
+            echo "version=$(date +%Y-%m-%d)" >> ./${OS_DIR}/info.conf
 
-          cd ../../artifact/
-          gzip *.img
-        '
+            # build sd image
+            FILENAME_SD=${{ matrix.CPU }}-sd-alpine-linux-arm64-$(date +%Y-%m-%d).img
+            echo "##[set-output name=img_filename_sd;]$FILENAME_SD"
+            ./mk-sd-image.sh ${OS_DIR} ${FILENAME_SD}
+            mv out/${FILENAME_SD} ../../artifact/
 
-    - name: Upload rootfs to release
-      uses: svenstaro/upload-release-action@81c65b7cd4de9b2570615ce3aad67a41de5b1a13 # v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./artifact/${{ steps.build_sd_image.outputs.image_assets_pkg_filename }}
-        asset_name: ${{ steps.build_sd_image.outputs.image_assets_pkg_filename }}
-        tag: ${{ needs.prepare_release.outputs.release_tag }}
-        overwrite: true
+            # build sd-to-emmc image
+            FILENAME_SD2EMMC=${{ matrix.CPU }}-eflasher-alpine-linux-arm64-$(date +%Y-%m-%d).img
+            echo "##[set-output name=img_filename_sd2emmc;]$FILENAME_SD2EMMC"
+            wget http://112.124.9.243/dvdfiles/${{ matrix.CPU }}/images-for-eflasher/emmc-flasher-images.tgz
+            tar xzf emmc-flasher-images.tgz
+            RAW_SIZE_MB=8000 ./mk-emmc-image.sh ${OS_DIR} filename=${FILENAME_SD2EMMC} autostart=yes
+            mv out/${FILENAME_SD2EMMC} ../../artifact/
 
-    - name: Upload sd image to release
-      uses: svenstaro/upload-release-action@81c65b7cd4de9b2570615ce3aad67a41de5b1a13 # v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./artifact/${{ steps.build_sd_image.outputs.img_filename_sd }}.gz
-        asset_name: ${{ steps.build_sd_image.outputs.img_filename_sd }}.gz
-        tag: ${{ needs.prepare_release.outputs.release_tag }}
-        overwrite: true
+            # package image-assets-xyz.tgz
+            IMAGE_ASSETS_PKG=image-assets-${{ matrix.CPU }}.tgz
+            echo "##[set-output name=image_assets_pkg_filename;]$IMAGE_ASSETS_PKG"
+            mkdir image-assets-${{ matrix.CPU }}
+            tar cpzf image-assets-${{ matrix.CPU }}/rootfs.tgz rootfs
+            mv ${OS_DIR} image-assets-${{ matrix.CPU }}/
+            tar czf ${IMAGE_ASSETS_PKG} image-assets-${{ matrix.CPU }}
+            mv ${IMAGE_ASSETS_PKG} ../../artifact/
 
-    - name: Upload sd-to-emmc image to release
-      uses: svenstaro/upload-release-action@81c65b7cd4de9b2570615ce3aad67a41de5b1a13 # v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./artifact/${{ steps.build_sd_image.outputs.img_filename_sd2emmc }}.gz
-        asset_name: ${{ steps.build_sd_image.outputs.img_filename_sd2emmc }}.gz
-        tag: ${{ needs.prepare_release.outputs.release_tag }}
-        overwrite: true
+            cd ../../artifact/
+            gzip *.img
+          '
 
+      - name: Upload rootfs to release
+        uses: svenstaro/upload-release-action@81c65b7cd4de9b2570615ce3aad67a41de5b1a13 # v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./artifact/${{ steps.build_sd_image.outputs.image_assets_pkg_filename }}
+          asset_name: ${{ steps.build_sd_image.outputs.image_assets_pkg_filename }}
+          tag: ${{ needs.prepare_release.outputs.release_tag }}
+          overwrite: true
+
+      - name: Upload sd image to release
+        uses: svenstaro/upload-release-action@81c65b7cd4de9b2570615ce3aad67a41de5b1a13 # v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./artifact/${{ steps.build_sd_image.outputs.img_filename_sd }}.gz
+          asset_name: ${{ steps.build_sd_image.outputs.img_filename_sd }}.gz
+          tag: ${{ needs.prepare_release.outputs.release_tag }}
+          overwrite: true
+
+      - name: Upload sd-to-emmc image to release
+        uses: svenstaro/upload-release-action@81c65b7cd4de9b2570615ce3aad67a41de5b1a13 # v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./artifact/${{ steps.build_sd_image.outputs.img_filename_sd2emmc }}.gz
+          asset_name: ${{ steps.build_sd_image.outputs.img_filename_sd2emmc }}.gz
+          tag: ${{ needs.prepare_release.outputs.release_tag }}
+          overwrite: true
