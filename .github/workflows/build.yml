@@ -6,6 +6,11 @@ jobs:
     runs-on: ubuntu-24.04
     if: github.event.repository.owner.id == github.event.sender.id
     steps:
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
+      with:
+        egress-policy: audit
+
     - name: Get release tag
       id: release_tag
       run: |
@@ -30,8 +35,13 @@ jobs:
     runs-on: ubuntu-24.04
     if: github.event.repository.owner.id == github.event.sender.id
     steps:
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
+      with:
+        egress-policy: audit
+
     - name: Checkout
-      uses: actions/checkout@main
+      uses: actions/checkout@ff7abcd0c3c05ccf6adc123a8cd1fd4fb30fb493 # main
 
     - name: Initialization environment
       env:
@@ -102,8 +112,13 @@ jobs:
       matrix:
         CPU: [rk3328, rk3528, rk3399, rk3566, rk3568, rk3576, rk3588]
     steps:
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
+      with:
+        egress-policy: audit
+
     - name: Checkout
-      uses: actions/checkout@main
+      uses: actions/checkout@ff7abcd0c3c05ccf6adc123a8cd1fd4fb30fb493 # main
 
     - name: Initialization environment
       env:
